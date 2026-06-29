@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  BUYER
+  ORGANISER
+  GATE_ADMIN
+}
+
+enum City {
+  MILANO
+  TORINO
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum TicketStatus {
+  VALID
+  CHECKED_IN
+}
+
+enum GateAdminStatus {
+  INVITED
+  ACTIVE
+}
+
+enum SeatStatus {
+  AVAILABLE
+  SOLD
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  name               String
+  email              String   @unique
+  phone              String?
+  avatarUrl          String?
+  passwordHash       String
+  role               Role     @default(BUYER)
+  theme              String   @default("light")
+  emailNotifications Boolean  @default(true)
+  createdAt          DateTime @default(now())
+
+  ownedEvents  Event[]      @relation("EventOwner")
+  orders       Order[]
+  scannedCheckIns CheckIn[] @relation("ScannedBy")
+  gateAdminFor GateAdmin[]  @relation("GateAdminUser")
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  venueName   String
+  city        City
+  startsAt    DateTime
+  imageUrl    String
+  mapImageUrl String   @default("")
+  ownerId     String
+
+  owner       User         @relation("EventOwner", fields: [ownerId], references: [id])
+  ticketTypes TicketType[]
+  orders      Order[]
+  tickets     Ticket[]
+  seats       Seat[]
+  gateAdmins  GateAdmin[]
+
+  createdAt   DateTime @default(now())
+}
+
+model TicketType {
+  id         String @id @default(cuid())
+  eventId    String
+  name       String
+  priceCents Int
+  gate       String
+  quantity   Int
+  soldCount  Int    @default(0)
+
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+  seats   Seat[]
+}
+
+model Seat {
+  id           String     @id @default(cuid())
+  ticketTypeId String
+  eventId      String
+  label        String
+  status       SeatStatus @default(AVAILABLE)
+  ticketId     String?    @unique
+
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticket     Ticket?    @relation(fields: [ticketId], references: [id])
+
+  @@unique([ticketTypeId, label])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  userId          String
+  eventId         String
+  totalCents      Int
+  currency        String      @default("eur")
+  stripeSessionId String?
+  status          OrderStatus @default(PENDING)
+  createdAt       DateTime    @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+}
+
+model Ticket {
+  id           String       @id @default(cuid())
+  orderId      String
+  eventId      String
+  ticketTypeId String
+  holderName   String
+  gate         String
+  qrToken      String       @unique
+  status       TicketStatus @default(VALID)
+  createdAt    DateTime     @default(now())
+
+  order      Order      @relation(fields: [orderId], references: [id])
+  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType TicketType @relation(fields: [ticketTypeId], references: [id])
+  checkIn    CheckIn?
+  seat       Seat?
+}
+
+model CheckIn {
+  id              String   @id @default(cuid())
+  ticketId        String   @unique
+  gate            String
+  scannedByUserId String
+  scannedAt       DateTime @default(now())
+
+  ticket      Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  scannedBy   User   @relation("ScannedBy", fields: [scannedByUserId], references: [id])
+}
+
+model GateAdmin {
+  id            String          @id @default(cuid())
+  eventId       String
+  userId        String?
+  invitedEmail  String
+  gate          String
+  status        GateAdminStatus @default(INVITED)
+
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user   User?  @relation("GateAdminUser", fields: [userId], references: [id])
+}

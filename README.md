@@ -33,6 +33,8 @@ npm run db:seed
 npm run dev
 ```
 
+On Windows PowerShell, if `npm` is blocked by the script execution policy, use `npm.cmd run dev`.
+
 Open http://localhost:3000.
 
 You will need environment variables in .env.local, including:

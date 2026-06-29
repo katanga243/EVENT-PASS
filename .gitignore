@@ -4,6 +4,8 @@ eventpass-mobile/.vscode/
 
 # Documentation files
 *.md
+!/README.md
+!/eventpass-web/README.md
 
 # Dependencies and build output
 node_modules/
